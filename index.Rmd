@@ -113,6 +113,8 @@ www.validinternational.org
 
 * Vitamin A supplementation coverage
 
+* Nutrition screening coverage
+
 * CMAM coverage
 
 ---
