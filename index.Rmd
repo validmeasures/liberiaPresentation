@@ -22,12 +22,14 @@ if(!require(RColorBrewer)) install.packages("RColorBrewer")
 if(!require(rgdal)) install.packages("rgdal")
 if(!require(rgeos)) install.packages("rgeos")
 if(!require(raster)) install.packages("raster")
+if(!require(xaringan)) install.packages("xaringan")
 
 if(!require(ggplot2)) install.packages("ggplot2")
 if(!require(cowplot)) install.packages("cowplot")
 
 if(!require(liberia)) remotes::install_github("validmeasures/liberia")
 if(!require(liberiaData)) remotes::install_github("validmeasures/liberiaData")
+if(!require(xaringanthemer)) remotes::instal_github("gadenbuie/xaringanthemer")
 
 mapbox.satellite <- "https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v10/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZXJuZXN0Z3VldmFycmEiLCJhIjoiejRRLXlZdyJ9.sqS1zi0rDH5CIzvcn9SXSg"
 mapbox.street    <- "https://api.mapbox.com/styles/v1/mapbox/streets-v10/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZXJuZXN0Z3VldmFycmEiLCJhIjoiejRRLXlZdyJ9.sqS1zi0rDH5CIzvcn9SXSg"
@@ -80,8 +82,7 @@ themeSettings <- theme_bw() +
 ```
 
 ```{r xaringan-themer, include = FALSE}
-library(xaringanthemer)
-mono_light(
+xaringanthemer::mono_light(
   base_color = "#85010C", #CF070C",
   #title_slide_background_image = "https://www.validnutrition.org/wp-content/uploads/2017/07/Valid-Nutrition-CMAM.jpg",
   #title_slide_background_size = "cover",
@@ -181,11 +182,14 @@ varName <- c("At least one ANC visit",
 
 for(i in 1:length(varLab)) {
   plot(ifaBase, lty = 0, col = map.palette(n = 101)[(ifaBase[[varLab[i]]] * 100) + 1])
-  title(main = varName[i], cex = 1, line = -1)
+  title(main = paste("Baseline: ", varName[i], sep = ""), cex = 15, line = -1)
 }
 
-for(i in c("ifa1", "ifa2", "ifa3", "ifa4", "ifa6")) {
-  plot(covHex, lty = 0, col = map.palette(n = 101)[(covHex[[i]] * 100) + 1])
+varLab <- c("ifa1", "ifa2", "ifa3", "ifa4", "ifa6")
+
+for(i in 1:length(varLab)) {
+  plot(covHex, lty = 0, col = map.palette(n = 101)[(covHex[[varLab[i]]] * 100) + 1])
+  title(main = paste("Endline: ", varName[i], sep = ""), cex = 15, line = -1)
 }
 ```
 
