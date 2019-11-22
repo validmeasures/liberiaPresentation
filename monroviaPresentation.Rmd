@@ -1,0 +1,468 @@
+---
+title: "Coverage Assessment of Direct Nutrition Interventions in Liberia"
+author: ""
+date: #'`r Sys.Date()`'
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css: xaringan-themer.css
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include = FALSE}
+options(htmltools.dir.version = FALSE)
+
+if(!require(remotes)) install.packages("remotes")
+if(!require(magrittr)) install.packages("magrittr")
+if(!require(leaflet)) install.packages("leaflet")
+if(!require(RColorBrewer)) install.packages("RColorBrewer")
+if(!require(rgdal)) install.packages("rgdal")
+if(!require(rgeos)) install.packages("rgeos")
+if(!require(raster)) install.packages("raster")
+if(!require(xaringan)) install.packages("xaringan")
+
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(cowplot)) install.packages("cowplot")
+
+if(!require(liberia)) remotes::install_github("validmeasures/liberia")
+if(!require(liberiaData)) remotes::install_github("validmeasures/liberiaData")
+if(!require(xaringanthemer)) remotes::instal_github("gadenbuie/xaringanthemer")
+
+mapbox.satellite <- "https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v10/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZXJuZXN0Z3VldmFycmEiLCJhIjoiejRRLXlZdyJ9.sqS1zi0rDH5CIzvcn9SXSg"
+mapbox.street    <- "https://api.mapbox.com/styles/v1/mapbox/streets-v10/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZXJuZXN0Z3VldmFycmEiLCJhIjoiejRRLXlZdyJ9.sqS1zi0rDH5CIzvcn9SXSg"
+mapbox.dark      <- "https://api.mapbox.com/styles/v1/mapbox/dark-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZXJuZXN0Z3VldmFycmEiLCJhIjoiejRRLXlZdyJ9.sqS1zi0rDH5CIzvcn9SXSg"
+mapbox.light     <- "https://api.mapbox.com/styles/v1/mapbox/light-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZXJuZXN0Z3VldmFycmEiLCJhIjoiejRRLXlZdyJ9.sqS1zi0rDH5CIzvcn9SXSg"
+mapbox.moonlight <- "https://api.mapbox.com/styles/v1/ernestguevarra/cj3nban30001z2rpahc10c9ef/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZXJuZXN0Z3VldmFycmEiLCJhIjoiejRRLXlZdyJ9.sqS1zi0rDH5CIzvcn9SXSg"
+mapbox.northstar <- "https://api.mapbox.com/styles/v1/ernestguevarra/cj4ke832y4sng2spe2ds4fs55/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZXJuZXN0Z3VldmFycmEiLCJhIjoiejRRLXlZdyJ9.sqS1zi0rDH5CIzvcn9SXSg"
+mapbox.standard  <- "https://api.mapbox.com/styles/v1/ernestguevarra/cj5di36jn0gxg2rphjn3yetpt/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZXJuZXN0Z3VldmFycmEiLCJhIjoiejRRLXlZdyJ9.sqS1zi0rDH5CIzvcn9SXSg"
+mapbox.decimal   <- "https://api.mapbox.com/styles/v1/ernestguevarra/cj5ms1akt3pbi2smtcewsex9m/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZXJuZXN0Z3VldmFycmEiLCJhIjoiejRRLXlZdyJ9.sqS1zi0rDH5CIzvcn9SXSg"
+mapbox.terminal  <- "https://api.mapbox.com/styles/v1/ernestguevarra/cj6g0tzbd30kc2sph2wyh666m/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZXJuZXN0Z3VldmFycmEiLCJhIjoiejRRLXlZdyJ9.sqS1zi0rDH5CIzvcn9SXSg"
+
+monrovia <- subset(liberia::districts, admin2Name == "Greater Monrovia")
+gmLng1 <- bbox(monrovia)[1, 1]
+gmLat1 <- bbox(monrovia)[2, 1]
+gmLng2 <- bbox(monrovia)[1, 2]
+gmLat2 <- bbox(monrovia)[2, 2]
+
+gmLng <- coordinates(monrovia)[1]
+gmLat <- coordinates(monrovia)[2]
+
+ifaBase <- readOGR(dsn = "data/ifa", layer = "ifaPolyGM")
+icfBase <- readOGR(dsn = "data/icf", layer = "icfPolyGM")
+mnpBase <- readOGR(dsn = "data/mnp", layer = "mnpPolyGM")
+vitBase <- readOGR(dsn = "data/vit", layer = "vitPolyGM")
+screenBase <- readOGR(dsn = "data/screen", layer = "screenPolyGM")
+cmamBase <- readOGR(dsn = "data/cmam", layer = "coveragePolyGM")
+nutBase <- readOGR(dsn = "data/nut", layer = "nutPolyGM")
+
+covHex <- gmHexGrid
+covHex@data <- data.frame(covHex@data, ifaInt, iycfInt, mnpInt, vitInt, screenInt, cmamInt, anthroInt)
+
+map.palette <- colorRampPalette(colors = brewer.pal(n = 7, name = "RdYlGn"), 
+                                space = "Lab")
+
+themeSettings <- theme_bw() + 
+  theme(panel.border = element_rect(colour = "#993300",
+                                    size = 0.5),
+        panel.grid.major = element_line(linetype = 1, 
+                                        size = 0.2, 
+                                        colour = "gray90"),
+        panel.grid.minor = element_line(linetype = 0),
+        strip.background = element_rect(colour = "#993300",
+                                        fill = "#993300"),
+        strip.text = element_text(colour = "white", size = 16),
+        legend.key = element_rect(linetype = 0),
+        axis.text.y.left = element_text(size = 18),
+        axis.text.x = element_text(size = 18),
+        axis.text.y = element_text(size = 18),
+        axis.ticks = element_line(colour = "#993300", size = 1))
+```
+
+```{r xaringan-themer, include = FALSE}
+xaringanthemer::mono_light(
+  base_color = "#85010C", #CF070C",
+  #title_slide_background_image = "https://www.validnutrition.org/wp-content/uploads/2017/07/Valid-Nutrition-CMAM.jpg",
+  #title_slide_background_size = "cover",
+  header_font_google = google_font("Lato"),
+  text_font_google = google_font("EB Garamond"),
+  text_color = "#2D2D2D",
+  text_bold_color = "#247BA0",
+  text_font_size = "1.5em",
+  code_font_google = google_font("Fira Mono"),
+  text_slide_number_font_size = "0.75em"
+)
+```
+
+class: inverse, center, middle
+
+## Valid International Ltd
+
+www.validinternational.org
+
+`r Sys.Date()`
+
+---
+# Outline
+
+* Iron-folic acid supplementation coverage
+
+* Infant and young child feeding counselling coverage
+
+* Micronutrient powder supplementation coverage
+
+* Vitamin A supplementation coverage
+
+* Nutrition screening coverage
+
+* CMAM coverage
+
+---
+background-color: #FFFFFF
+
+# Iron-folic acid supplementation coverage
+
+```{r ifa, echo = FALSE, eval = TRUE, fig.width = 20, fig.height = 10}
+xlabs <- c("At least one\nANC visit",
+           "Know/heard\nof IFA",
+           "Received/\npurchased IFA",
+           "Consumed\nIFA",
+           "Consumed\nIFA\nat least\n90 days")
+
+ifaEst <- read.csv("data/ifaEst.csv")
+ifaEst <- ifaEst[ifaEst$county == "Monrovia", ]
+
+baseline <- ggplot(data = ifaEst[ifaEst$type == "est" & 
+                                   ifaEst$indicator %in% c("ifa1", 
+                                                           "ifa2", 
+                                                           "ifa3", 
+                                                           "ifa4", 
+                                                           "ifa5"), ],
+                   aes(x = indicator, y = estimate * 100)) +
+  geom_col(color = "#993300", fill = "#993300", width = 0.7, alpha = 0.7) +
+  labs(x = "", y = "%") +
+  scale_y_continuous(limits = 0:1 * 100, 
+                     breaks = seq(from = 0, to = 100, by = 10)) + 
+  scale_x_discrete(labels = xlabs) + 
+  themeSettings
+
+endline <- ggplot(data = ifaBoot[ifaBoot$varLabel %in% c("ifa1", 
+                                                         "ifa2", 
+                                                         "ifa3",
+                                                         "ifa4", 
+                                                         "ifa6"), ], 
+                  mapping = aes(x = varLabel, y = estimate * 100)) +
+  geom_col(color = "#993300", fill = "#993300", width = 0.7, alpha = 0.7) +
+  scale_y_continuous(breaks = seq(from = 0, to = 100, by = 10),
+                     limits = c(0, 100)) +
+  scale_x_discrete(labels = xlabs) +
+  labs(x = "", y = "%") +
+  themeSettings
+
+plot_grid(baseline, endline, labels = c("Baseline", "Endline"), 
+          label_size = 28, label_colour = "#85010C")
+```
+
+---
+background-color: #FFFFFF
+
+# Spatial distribution of IFA coverage
+
+```{r ifaMap, echo = FALSE, eval = TRUE, fig.width = 25, fig.height = 10, fig.align = "center"}
+par(mar = c(0, 0, 0 ,0), mfrow = c(2, 5))
+
+varLab <- c("ifa1", "ifa2", "ifa3", "ifa4", "ifa5")
+varName <- c("At least one ANC visit",
+             "Know/heard of IFA",
+             "Received/ purchased IFA",
+             "Consumed IFA",
+             "Consumed IFA at least 90 days")
+
+for(i in 1:length(varLab)) {
+  plot(ifaBase, lty = 0, col = map.palette(n = 101)[(ifaBase[[varLab[i]]] * 100) + 1])
+  title(main = paste("Baseline: ", varName[i], sep = ""), cex = 15, line = -1)
+}
+
+varLab <- c("ifa1", "ifa2", "ifa3", "ifa4", "ifa6")
+
+for(i in 1:length(varLab)) {
+  plot(covHex, lty = 0, col = map.palette(n = 101)[(covHex[[varLab[i]]] * 100) + 1])
+  title(main = paste("Endline: ", varName[i], sep = ""), cex = 15, line = -1)
+}
+```
+
+---
+background-color: #FFFFFF
+
+# IYCF counselling
+
+```{r icf, echo = FALSE, eval = TRUE, fig.width = 20, fig.height = 10}
+xlabs <- c("Know about\nIYCF counselling", 
+           "Attended IYCF\ncounselling")
+
+icfEst <- read.csv("data/icfEst.csv")
+icfEst <- icfEst[icfEst$county == "Monrovia", ]
+
+baseline <- ggplot(data = icfEst[icfEst$indicator %in% c("icf1", "icf2"), ], 
+                   mapping = aes(x = indicator, y = estimate * 100)) +
+  geom_col(color = "#993300", fill = "#993300", width = 0.7, alpha = 0.7) +
+  labs(x = "", y = "%") +
+  scale_y_continuous(limits = 0:1 * 100, 
+                     breaks = seq(from = 0, to = 100, by = 10)) + 
+  scale_x_discrete(labels = xlabs) + 
+  themeSettings
+
+endline <- ggplot(data = iycfBoot[iycfBoot$varLabel %in% c("icf1", 
+                                                           "icf2"), ], 
+                  mapping = aes(x = varLabel, y = estimate * 100)) +
+  geom_col(color = "#993300", fill = "#993300", width = 0.7, alpha = 0.7) +
+  scale_y_continuous(breaks = seq(from = 0, to = 100, by = 10),
+                     limits = c(0, 100)) +
+  scale_x_discrete(labels = xlabs) +
+  labs(x = "", y = "%") +
+  themeSettings
+
+plot_grid(baseline, endline, labels = c("Baseline", "Endline"), 
+          label_size = 28, label_colour = "#85010C")
+```
+
+---
+background-color: #FFFFFF
+
+# Spatial distrubtion of IYCF counselling coverage
+
+```{r icfMap1, echo = FALSE, eval = TRUE, fig.width = 20, fig.height = 10, fig.align = "center"}
+par(mar = c(0, 0, 0 ,0), mfrow = c(1, 2))
+
+plot(icfBase, lty = 0, col = map.palette(n = 101)[(icfBase[["icf1"]] * 100) + 1])
+title(main = "Baseline: Know about IYCF counselling", cex = 1, line = -1)
+
+plot(covHex, lty = 0, col = map.palette(n = 101)[(covHex[["icf1"]] * 100) + 1])
+title(main = "Endline: Know about IYCF counselling", cex = 1, line = -1)
+```
+
+---
+background-color: #FFFFFF
+
+# Spatial distrubtion of IYCF counselling coverage
+
+```{r icfMap2, echo = FALSE, eval = TRUE, fig.width = 20, fig.height = 10, fig.align = "center"}
+par(mar = c(0, 0, 0 ,0), mfrow = c(1, 2))
+
+plot(icfBase, lty = 0, col = map.palette(n = 101)[(icfBase[["icf2"]] * 100) + 1])
+title(main = "Baseline: Attended IYCF counselling", cex = 1, line = -1)
+
+plot(covHex, lty = 0, col = map.palette(n = 101)[(covHex[["icf2"]] * 100) + 1])
+title(main = "Endline: Attended IYCF counselling", cex = 1, line = -1)
+```
+
+---
+background-color: #FFFFFF
+
+# Micronutrient powder supplementation coverage
+
+```{r mnp, echo = FALSE, eval = TRUE, fig.width = 20, fig.height = 10}
+xlabs <- c("Know/heard\nabout\nMNP",
+           "Received/\npurchased\nMNP",
+           "Consumed\nMNP")
+
+mnpEst <- read.csv("data/mnpEst.csv")
+mnpEst <- mnpEst[mnpEst$county == "Monrovia", ]
+
+baseline <- ggplot(data = mnpEst[mnpEst$indicator %in% c("mnp1", "mnp2", "mnp3"), ], 
+                   mapping = aes(x = indicator, y = estimate * 100)) +
+  geom_col(color = "#993300", fill = "#993300", width = 0.7, alpha = 0.7) +
+  labs(x = "", y = "%") +
+  scale_y_continuous(limits = c(0, 100), 
+                     breaks = seq(from = 0, to = 100, by = 10)) + 
+  scale_x_discrete(labels = xlabs) + 
+  themeSettings
+
+endline <- ggplot(data = mnpBoot[mnpBoot$varLabel %in% c("mnp1", "mnp2", "mnp3"), ], 
+                  mapping = aes(x = varLabel, y = estimate * 100)) +
+  geom_col(color = "#993300", fill = "#993300", width = 0.7, alpha = 0.7) +
+  scale_y_continuous(breaks = seq(from = 0, to = 100, by = 10),
+                     limits = c(0, 100)) +
+  scale_x_discrete(labels = xlabs) +
+  labs(x = "", y = "%") +
+  themeSettings
+
+plot_grid(baseline, endline, labels = c("Baseline", "Endline"), 
+          label_size = 28, label_colour = "#85010C")
+```
+
+---
+background-color: #FFFFFF
+
+# Spatial distribution of MNP supplementation coverage
+
+```{r mnpMap, echo = FALSE, eval = TRUE, fig.width = 9, fig.height = 6, fig.align = "center"}
+par(mar = c(0, 0, 0 ,0), mfrow = c(2, 3))
+
+varLab <- c("mnp1", "mnp2", "mnp3")
+varName <- c("Know/heard about MNP",
+              "Received/purchased MNP",
+              "Consumed MNP")
+
+for(i in 1:length(varLab)) {
+  plot(mnpBase, lty = 0, col = map.palette(n = 101)[(mnpBase[[varLab[i]]] * 100) + 1])
+  title(main = varName[i], cex = 1, line = -1)
+}
+
+for(i in varLab) {
+  plot(covHex, lty = 0, col = map.palette(n = 101)[(covHex[[i]] * 100) + 1])
+}
+```
+
+---
+background-color: #FFFFFF
+
+# Vitamin A supplementation coverage
+
+```{r vit, echo = FALSE, eval = TRUE, fig.width = 20, fig.height = 10}
+xlabs <- c("Received\nvitamin A\nin past 6 months")
+
+vitEst <- read.csv("data/vitEst.csv")
+vitEst <- vitEst[vitEst$county == "Monrovia", ]
+
+baseline <- ggplot(data = vitEst[vitEst$indicator %in% "vit1", ], 
+                   mapping = aes(x = indicator, y = estimate * 100)) +
+  geom_col(color = "#993300", fill = "#993300", width = 0.5, alpha = 0.7) +
+  labs(x = "", y = "%") +
+  scale_y_continuous(limits = 0:1 * 100, 
+                     breaks = seq(from = 0, to = 100, by = 10)) + 
+  scale_x_discrete(labels = xlabs) + 
+  themeSettings
+
+endline <- ggplot(data = vitBoot[vitBoot$varLabel %in% "vit1", ], 
+                  mapping = aes(x = varLabel, y = estimate * 100)) +
+  geom_col(color = "#993300", fill = "#993300", width = 0.5, alpha = 0.7) +
+  scale_y_continuous(breaks = seq(from = 0, to = 100, by = 10),
+                     limits = c(0, 100)) +
+  scale_x_discrete(labels = xlabs) +
+  labs(x = "", y = "%") +
+  themeSettings
+
+plot_grid(baseline, endline, labels = c("Baseline", "Endline"), 
+          label_size = 28, label_colour = "#85010C")
+```
+
+---
+background-color: #FFFFFF
+
+# Spatial distribution of vitamin A supplementation coverage
+
+```{r vitMap, echo = FALSE, eval = TRUE, fig.width = 20, fig.height = 10, fig.align = "center"}
+par(mar = c(0, 0, 0 ,0), mfrow = c(1, 2))
+
+plot(vitBase, lty = 0, col = map.palette(n = 101)[(vitBase[["vit1"]] * 100) + 1])
+title(main = "Baseline: Received vitamin A in past 6 months", cex = 1, line = -1)
+
+plot(covHex, lty = 0, col = map.palette(n = 101)[(covHex[["vit1"]] * 100) + 1])
+title(main = "Endline: Received vitamin A in past 6 months", cex = 1, line = -1)
+```
+
+---
+background-color: #FFFFFF
+
+# Nutrition screening
+
+```{r screen, echo = FALSE, eval = TRUE, fig.width = 20, fig.height = 10}
+xlabs <- c("MUAC\nscreening", 
+           "Oedema\nscreening")
+
+screenEst <- read.csv("data/screenEst.csv")
+screenEst <- screenEst[screenEst$county == "Monrovia", ]
+
+screenEst$indicator <- factor(screenEst$indicator, levels = c("muacScreen", "oedemaScreen", "bothScreen"))
+
+baseline <- ggplot(data = screenEst[screenEst$indicator %in% c("muacScreen", "oedemaScreen"), ], 
+       aes(x = indicator, y = estimate * 100)) +
+  geom_col(color = "#993300", fill = "#993300", width = 0.5, alpha = 0.7) +
+  labs(x = "", y = "%") +
+  scale_y_continuous(limits = c(0, 1) * 100, 
+                     breaks = seq(from = 0, to = 100, by = 20)) + 
+  scale_x_discrete(labels = xlabs) + 
+  themeSettings
+
+endline <- ggplot(data = screenBoot[screenBoot$varLabel %in% c("height.screen", "weight.screen", 
+                                                              "muac.screen", "oedema.screen"), ], 
+                  mapping = aes(x = varLabel, y = estimate * 100)) +
+  geom_col(color = "#993300", fill = "#993300", width = 0.5, alpha = 0.7) +
+  scale_y_continuous(breaks = seq(from = 0, to = 100, by = 20),
+                     limits = c(0, 100)) +
+  labs(x = "", y = "%") +
+  scale_x_discrete(labels = c("Height\nscreening", "Weight\nscreening", 
+                              "MUAC\nscreening", "Oedema\nscreening")) +
+  themeSettings
+
+plot_grid(baseline, endline, labels = c("Baseline", "Endline"), 
+          label_size = 28, label_colour = "#85010C")
+```
+
+---
+background-color: #FFFFFF
+
+# CMAM coverage
+
+```{r cmam, echo = FALSE, eval = TRUE, fig.width = 20, fig.height = 10}
+coverageEst <- read.csv("data/coverageEst.csv")
+coverageEst <- coverageEst[coverageEst$county == "Monrovia", ]
+
+coverageEst$indicator <- factor(coverageEst$indicator, levels = c("point", "treatment"))
+
+baseline <- ggplot(data = coverageEst[coverageEst$indicator %in% c("point", "treatment"), ], 
+                   mapping = aes(x = indicator, y = estimate * 100)) +
+  geom_col(color = "#993300", fill = "#993300", width = 0.7, alpha = 0.7) +
+  labs(x = "", y = "%") +
+  scale_y_continuous(limits = c(0, 1) * 100, 
+                     breaks = seq(from = 0, to = 100, by = 10)) + 
+  scale_x_discrete(labels = c("Case-finding effectiveness", 
+                              "Treatment coverage")) + 
+  themeSettings
+
+endline <- ggplot(data = cmamEst, 
+                  mapping = aes(x = varLabel, y = estimate * 100)) +
+  geom_col(color = "#993300", fill = "#993300", width = 0.7, alpha = 0.7) +
+  scale_y_continuous(breaks = seq(from = 0, to = 100, by = 20),
+                     limits = c(0, 100)) +
+  labs(x = "", y = "%") +
+  scale_x_discrete(labels = c("Case-finding effectiveness", "Treatment coverage")) +
+  themeSettings
+
+plot_grid(baseline, endline, labels = c("Baseline", "Endline"), 
+          label_size = 28, label_colour = "#85010C")
+```
+
+---
+background-color: #FFFFFF
+
+# Spatial distribution of CMAM coverage
+
+```{r cmamMap1, echo = FALSE, eval = TRUE, fig.width = 20, fig.height = 10, fig.align = "center"}
+par(mar = c(0, 0, 0 ,0), mfrow = c(1, 2))
+
+plot(cmamBase, lty = 0, col = map.palette(n = 101)[(cmamBase[["case"]] * 100) + 1])
+title(main = "Baseline: Case-finding effectiveness", cex = 1, line = -1)
+
+plot(covHex, lty = 0, col = map.palette(n = 101)[(covHex[["cf"]] * 100) + 1])
+title(main = "Endline: Case-finding effectiveness", cex = 1, line = -1)
+```
+
+---
+background-color: #FFFFFF
+
+# Spatial distribution of CMAM coverage
+
+```{r cmamMap2, echo = FALSE, eval = TRUE, fig.width = 20, fig.height = 10, fig.align = "center"}
+par(mar = c(0, 0, 0 ,0), mfrow = c(1, 2))
+
+plot(cmamBase, lty = 0, col = map.palette(n = 101)[(cmamBase[["treatment"]] * 100) + 1])
+title(main = "Baseline: Case-finding effectiveness", cex = 1, line = -1)
+
+plot(covHex, lty = 0, col = map.palette(n = 101)[(covHex[["tc"]] * 100) + 1])
+title(main = "Endline: Case-finding effectiveness", cex = 1, line = -1)
+```
+
